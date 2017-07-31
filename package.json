@@ -81,6 +81,13 @@
                         "*"
                     ],
                     "description": "Which symbols to include at the topmost scope.  * includes everything."
+				},
+                "symbolOutline.namespaceSeparators": {
+                    "type": "object",
+                    "default": {
+						"php": "\\"
+					},
+                    "description": "If the language server you use provides symbol name and containerName values with namespace prefixes, use this property to define the namespace separator. Using the separator defined here, this extension will extract and use only the final token in the provided `name` and `containerName` strings for child/parent matching."
                 }
             }
         }

@@ -1,9 +1,14 @@
 import { Event, EventEmitter, ExtensionContext, SymbolKind, SymbolInformation, TextDocument, TextEditor, TreeDataProvider, TreeItem, TreeItemCollapsibleState, commands, window, workspace } from 'vscode';
 import * as path from 'path';
 
+interface NamespaceSeparators {
+	[mode: string]: string;
+}
+
 let optsSortOrder: number[] = [];
 let optsTopLevel: number[] = [];
 let optsDoSort = true;
+let namespaceSeparators: NamespaceSeparators = {};
 
 export class SymbolNode {
     symbol: SymbolInformation;
@@ -65,14 +70,15 @@ export class SymbolOutlineProvider implements TreeDataProvider<SymbolNode> {
                symbols = symbols.filter(sym => optsTopLevel.indexOf(sym.kind) >= 0);
             }
             symbols.reduce((knownContainerScopes, symbol) => {
-                let parent: SymbolNode = knownContainerScopes[''];
-                if (symbol.containerName in knownContainerScopes) {
-                    parent = knownContainerScopes[symbol.containerName];
+				let parent: SymbolNode = knownContainerScopes[''];
+				const immediateContainerName = extractSymbolName(editor.document.languageId, symbol.containerName);
+                if (immediateContainerName in knownContainerScopes) {
+                    parent = knownContainerScopes[immediateContainerName];
                 }
 
                 const node = new SymbolNode(symbol);
                 parent.addChild(node);
-                return {...knownContainerScopes, [symbol.name]: node};
+                return {...knownContainerScopes, [extractSymbolName(editor.document.languageId, symbol.name)]: node};
             }, {'': tree});
             if (optsDoSort) tree.sort();
         }
@@ -171,6 +177,7 @@ function readOpts() {
    optsDoSort = opts.get<boolean>("doSort");
    optsSortOrder = convertEnumNames(opts.get<string[]>("sortOrder"));
    optsTopLevel = convertEnumNames(opts.get<string[]>("topLevel"));
+   namespaceSeparators = opts.get<NamespaceSeparators>("namespaceSeparators");
 }
 
 function convertEnumNames(names:string[]):number[] {
@@ -178,4 +185,14 @@ function convertEnumNames(names:string[]):number[] {
       let v = SymbolKind[str];
       return typeof v == "undefined" ? -1 : v;
    });
+}
+
+function extractSymbolName(languageId: string, name: string): string {
+	if (namespaceSeparators[languageId] !== undefined) {
+		const tokens = name.split(namespaceSeparators[languageId]);
+		if (tokens.length) {
+			return tokens[tokens.length - 1];
+		}
+	}
+	return name;
 }
